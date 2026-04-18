@@ -1,0 +1,5 @@
+blind_venv/
+currency_yolo26n_ncnn_model/
+face_encodings.pkl
+known_faces/raj/
+yolo26n.pt
