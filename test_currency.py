@@ -13,8 +13,9 @@ import numpy as np
 from ultralytics import YOLO
 
 # ── Config ──────────────────────────────────────────────────────────
-PT_MODEL  = "currency_yolo26n.pt"
-CONF      = 0.30          # deliberately LOW so we see near-matches too
+#PT_MODEL  = "currency_yolo26n.pt"
+PT_MODEL = "new_curr_best.pt"
+CONF      = 0.45          # deliberately LOW so we see near-matches too
 IMGSZ     = 640
 CAM_INDEX = 0
 CAM_W, CAM_H = 640, 480

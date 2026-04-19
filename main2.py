@@ -84,11 +84,11 @@ CONFIG = {
     "FRAME_HEIGHT":  480,
 
     "YOLO_GENERAL_MODEL":       "yolo26n.pt",
-    "YOLO_CURRENCY_MODEL_PT":   "currency_yolo26n.pt",
-    "YOLO_CURRENCY_MODEL_NCNN": "currency_yolo26n_ncnn_model",
+    "YOLO_CURRENCY_MODEL_PT":   "new_curr_best.pt",
+    "YOLO_CURRENCY_MODEL_NCNN": "new_best_nccn_model",
 
     "YOLO_CONF":         0.50,
-    "CURRENCY_CONF":     0.30,   # lower = more sensitive
+    "CURRENCY_CONF":     0.50,   # lower = more sensitive
     "YOLO_IMGSZ":        640,
 
     "FACE_ENCODINGS_FILE": "face_encodings.pkl",
