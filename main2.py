@@ -100,7 +100,7 @@ CONFIG = {
     "OBSTACLE_WARN_CM":       60,
 
     "SPEECH_RATE":       145,
-    "TTS_COOLDOWN_S":    4.0,
+    "TTS_COOLDOWN_S":    8.0,
     "FACE_COOLDOWN_S":  10.0,
 
     "CURRENCY_CHECK_EVERY": 1,   # every frame in currency mode
@@ -165,7 +165,8 @@ def auto_register_faces():
 # ================================================================
 class TTSSpeaker:
     def __init__(self, rate=145):
-        self._queue = queue.Queue(maxsize=5)
+        # maxsize=1 ensures we NEVER backlog old speech. It stays strictly real-time.
+        self._queue = queue.Queue(maxsize=1)
         self._last  = {}   # category → last_spoken_time
         threading.Thread(target=self._run, daemon=True).start()
 
