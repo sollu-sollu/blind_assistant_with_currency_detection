@@ -28,6 +28,7 @@ pillow==12.2.0
 polars==1.39.3
 polars-runtime-32==1.39.3
 psutil==7.2.2
+PyAudio==0.2.14
 pyparsing==3.3.2
 pypiwin32==223
 python-dateutil==2.9.0.post0
@@ -37,6 +38,7 @@ PyYAML==6.0.3
 requests==2.33.1
 scipy==1.17.1
 six==1.17.0
+SpeechRecognition==3.16.0
 sympy==1.14.0
 torch==2.11.0
 torchvision==0.26.0
