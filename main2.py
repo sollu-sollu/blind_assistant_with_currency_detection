@@ -85,7 +85,7 @@ CONFIG = {
 
     "YOLO_GENERAL_MODEL":       "yolo26n.pt",
     "YOLO_CURRENCY_MODEL_PT":   "new_curr_best.pt",
-    "YOLO_CURRENCY_MODEL_NCNN": "new_best_nccn_model",
+    "YOLO_CURRENCY_MODEL_NCNN": "new_best_ncnn_model",
 
     "YOLO_CONF":         0.50,
     "CURRENCY_CONF":     0.50,   # lower = more sensitive
@@ -467,7 +467,7 @@ def main():
     print("System ready. Q = quit | Voice: 'currency' or 'navigate'\n")
 
     # ── Display setup ─────────────────────────────────────────
-    WIN_NAME = "Blind Assistant — Detection View"
+    WIN_NAME = "Blind Assistant - Detection View"
     # Display at 2x for clarity (but draw boxes based on raw coords * SCALE)
     SCALE    = 2
     PANEL_W  = 300
@@ -585,6 +585,24 @@ def main():
                 verbose = False,
             )
 
+            # --- Calculate Total Value ---
+            total_sum = 0
+            for r in last_curr_res:
+                for box in r.boxes:
+                    raw = currency_model.names[int(box.cls[0])]
+                    # Extract the digits from the label name directly
+                    num_str = ''.join(filter(str.isdigit, raw))
+                    if num_str:
+                        total_sum += int(num_str)
+            
+            if total_sum > 0:
+                tts.say(f"Total amount is {total_sum} Rupees.", category="currency_total", cooldown=CONFIG["TTS_COOLDOWN_S"])
+                print(f"[CURRENCY] Sum total parsed: {total_sum}")
+            else:
+                # If nothing is detected, wipe the ghost boxes completely!
+                last_curr_res = []
+
+        # Draw the saved boxes on the UI
         for r in last_curr_res:
             for box in r.boxes:
                 raw    = currency_model.names[int(box.cls[0])]
@@ -598,10 +616,6 @@ def main():
 
                 cv2.rectangle(big_frame, (bx1, by1), (bx2, by2), (0, 215, 255), 3)
                 draw_label(big_frame, spoken, bx1, by1, (0, 200, 255))
-
-                tts.say(f"It is {spoken}.", category=spoken,
-                        cooldown=CONFIG["TTS_COOLDOWN_S"])
-                print(f"[CURRENCY] {spoken}  ({conf:.0%})")
 
         if currency_model is None:
             cv2.putText(big_frame, "Currency model not loaded!", (20, DISP_H//2),
