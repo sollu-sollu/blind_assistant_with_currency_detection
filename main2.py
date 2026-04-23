@@ -674,8 +674,6 @@ def main():
         if GPIO_AVAILABLE:
             dc = (0,80,255) if sensors.dist_cm < CONFIG["OBSTACLE_WARN_CM"] else (80,255,80)
             pr("Ultrasonic", f"{sensors.dist_cm:.0f} cm", dc)
-            irc = (0,80,255) if sensors.ir_triggered else (80,255,80)
-            pr("IR Sensor", "TRIGGERED" if sensors.ir_triggered else "Clear", irc)
         else:
             pr("Status", "Offline (PC)", (100,100,100))
         py += 4
