@@ -35,7 +35,8 @@ except ImportError:
 
 # ── Optional: GPIO (Pi only) ─────────────────────────────────
 try:
-    from gpiozero import DistanceSensor, InputDevice
+    import RPi.GPIO as GPIO
+    import time
     GPIO_AVAILABLE = True
 except Exception:
     GPIO_AVAILABLE = False
@@ -88,7 +89,7 @@ CONFIG = {
     "YOLO_CURRENCY_MODEL_NCNN": "new_best_ncnn_model",
 
     "YOLO_CONF":         0.50,
-    "CURRENCY_CONF":     0.50,   # lower = more sensitive
+    "CURRENCY_CONF":     0.60,   # lower = more sensitive
     "YOLO_IMGSZ":        640,
 
     "FACE_ENCODINGS_FILE": "face_encodings.pkl",
@@ -100,7 +101,7 @@ CONFIG = {
     "OBSTACLE_WARN_CM":       60,
 
     "SPEECH_RATE":       145,
-    "TTS_COOLDOWN_S":    8.0,
+    "TTS_COOLDOWN_S":    4.0,
     "FACE_COOLDOWN_S":  10.0,
 
     "CURRENCY_CHECK_EVERY": 1,   # every frame in currency mode
@@ -165,8 +166,7 @@ def auto_register_faces():
 # ================================================================
 class TTSSpeaker:
     def __init__(self, rate=145):
-        # maxsize=1 ensures we NEVER backlog old speech. It stays strictly real-time.
-        self._queue = queue.Queue(maxsize=1)
+        self._queue = queue.Queue(maxsize=5)
         self._last  = {}   # category → last_spoken_time
         threading.Thread(target=self._run, daemon=True).start()
 
@@ -218,7 +218,7 @@ class CameraStream:
         if ON_PI and isinstance(index, int):
             self._cap = cv2.VideoCapture(index, cv2.CAP_V4L2)
         else:
-            self._cap = cv2.VideoCapture("hel.mp4")
+            self._cap = cv2.VideoCapture(index)
         self._cap.set(cv2.CAP_PROP_FRAME_WIDTH,  width)
         self._cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
         self._cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
@@ -247,7 +247,45 @@ class CameraStream:
     def stop(self):
         self._running = False
         self._cap.release()
+# Ultrasonic
+TRIG = 4
+ECHO = 17
 
+GPIO.setwarnings(False)
+GPIO.setmode(GPIO.BCM)
+
+GPIO.setup(TRIG, GPIO.OUT)
+GPIO.setup(ECHO, GPIO.IN)
+
+def get_distance_cm():
+    GPIO.output(TRIG, False)
+    time.sleep(0.05)
+
+    GPIO.output(TRIG, True)
+    time.sleep(0.00001)
+    GPIO.output(TRIG, False)
+
+    start = time.time()
+    stop = time.time()
+
+    timeout = time.time() + 0.04  # safety timeout
+
+    while GPIO.input(ECHO) == 0:
+        start = time.time()
+        if time.time() > timeout:
+            return 999
+
+    timeout = time.time() + 0.04
+
+    while GPIO.input(ECHO) == 1:
+        stop = time.time()
+        if time.time() > timeout:
+            return 999
+
+    duration = stop - start
+    distance = duration * 17150
+
+    return round(distance, 2)
 
 # ================================================================
 #  SENSOR MONITOR (Pi only — gracefully offline on PC)
@@ -255,36 +293,16 @@ class CameraStream:
 class SensorMonitor:
     def __init__(self, tts, cfg):
         self.dist_cm      = 999.0
-        self.ir_triggered = False
         self._running     = True
-        self._ultrasonic  = None
-        self._ir          = None
-
-        if GPIO_AVAILABLE:
-            try:
-                self._ultrasonic = DistanceSensor(
-                    echo=cfg["ULTRASONIC_ECHO_PIN"],
-                    trigger=cfg["ULTRASONIC_TRIGGER_PIN"],
-                    max_distance=4.0)
-                self._ir = InputDevice(cfg["IR_SENSOR_PIN"])
-            except Exception as e:
-                print(f"[Sensor] Init error: {e}")
-
         threading.Thread(target=self._loop, daemon=True).start()
 
     def _loop(self):
         while self._running:
-            if self._ultrasonic:
-                try:
-                    self.dist_cm = self._ultrasonic.distance * 100.0
-                except Exception:
-                    self.dist_cm = 999.0
-            if self._ir:
-                try:
-                    self.ir_triggered = self._ir.is_active
-                except Exception:
-                    self.ir_triggered = False
-            time.sleep(0.2)
+            try:
+                self.dist_cm = get_distance_cm()
+            except Exception:
+                self.dist_cm = 999.0
+            time.sleep(0.1)
 
     def stop(self):
         self._running = False
@@ -541,7 +559,7 @@ def main():
                     person_detected = True
                 else:
                     # Announce with distance if sensor available
-                    if GPIO_AVAILABLE and sensors._ultrasonic and sensors.dist_cm < 900:
+                    if GPIO_AVAILABLE and sensors.dist_cm < 900:
                         dist_m = sensors.dist_cm / 100.0
                         tts.say(f"It is {label} in {dist_m:.1f} meter",
                                 category=label, cooldown=CONFIG["TTS_COOLDOWN_S"])
@@ -550,8 +568,7 @@ def main():
                                 category=label, cooldown=CONFIG["TTS_COOLDOWN_S"])
 
         # Obstacle fallback: sensor detects close object but YOLO missed it
-        if not person_detected and GPIO_AVAILABLE and sensors._ultrasonic:
-            if sensors.dist_cm < 500:
+        if GPIO_AVAILABLE and sensors.dist_cm < 250:
                 tts.say("There is an object in front of you.",
                         category="obstacle", cooldown=CONFIG["TTS_COOLDOWN_S"])
 
@@ -654,7 +671,7 @@ def main():
 
         # Sensors
         ph("SENSORS")
-        if GPIO_AVAILABLE and sensors._ultrasonic:
+        if GPIO_AVAILABLE:
             dc = (0,80,255) if sensors.dist_cm < CONFIG["OBSTACLE_WARN_CM"] else (80,255,80)
             pr("Ultrasonic", f"{sensors.dist_cm:.0f} cm", dc)
             irc = (0,80,255) if sensors.ir_triggered else (80,255,80)
